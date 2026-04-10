@@ -355,6 +355,7 @@ list(APPEND PICO_KEYS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/apdu.c
     ${CMAKE_CURRENT_LIST_DIR}/src/rescue.c
     ${CMAKE_CURRENT_LIST_DIR}/src/led/led.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/io/cardputer_io.cpp
 )
 
 if(ESP_PLATFORM)
@@ -420,31 +421,6 @@ if(USE_OPENSSL_EMULATION_WRAPPER)
     list(APPEND LIBRARIES OpenSSL::Crypto)
 endif()
 
-if(NOT ESP_PLATFORM)
-    if(NOT SKIP_MBEDTLS_FOR_OPENSSL_EMULATION)
-        add_library(mbedtls STATIC ${MBEDTLS_SOURCES})
-        target_include_directories(mbedtls SYSTEM PUBLIC ${CMAKE_CURRENT_LIST_DIR}/mbedtls/include)
-    endif()
-    if(USB_ITF_HID)
-        add_library(tinycbor STATIC ${CBOR_SOURCES})
-        target_include_directories(tinycbor SYSTEM PUBLIC ${CMAKE_CURRENT_LIST_DIR}/tinycbor/src)
-        list(APPEND LIBRARIES tinycbor)
-    endif()
-endif()
-
-if(PICO_PLATFORM)
-    list(APPEND LIBRARIES
-        pico_stdlib
-        pico_multicore
-        pico_rand
-        pico_aon_timer
-        hardware_flash
-        pico_unique_id
-        tinyusb_device
-        tinyusb_board
-        hardware_pio
-    )
-endif()
 
 if(ENABLE_PQC)
     list(APPEND LIBRARIES
@@ -455,15 +431,6 @@ if(ENABLE_PQC)
 endif()
 
 set(IS_CYW43 0)
-if(PICO_PLATFORM)
-    file(READ ${PICO_SDK_PATH}/src/boards/include/boards/${PICO_BOARD}.h content)
-    string(REGEX MATCHALL "CYW43_WL_GPIO_LED_PIN" _ ${content})
-    if(CMAKE_MATCH_0)
-        message(STATUS "Found cyw43 LED:\t\t true")
-        list(APPEND LIBRARIES pico_cyw43_arch_none)
-        set(IS_CYW43 1)
-    endif()
-endif()
 
 function(add_impl_library target)
     add_library(${target} INTERFACE)
@@ -596,38 +563,6 @@ if(MSVC)
     )
 endif()
 
-if(PICO_PLATFORM)
-    pico_sdk_init()
-endif()
-
-if(PICO_RP2350)
-    pico_set_uf2_family(${CMAKE_PROJECT_NAME} "rp2350-arm-s")
-    pico_embed_pt_in_binary(${CMAKE_PROJECT_NAME} "${CMAKE_CURRENT_LIST_DIR}/config/rp2350/pt.json")
-    if(NOT IS_CYW43)
-        pico_set_binary_type(${CMAKE_PROJECT_NAME} copy_to_ram)
-    endif()
-    if(SECURE_BOOT_PKEY)
-        message(STATUS "Secure Boot Key ${SECURE_BOOT_PKEY}")
-        pico_sign_binary(${CMAKE_PROJECT_NAME} ${SECURE_BOOT_PKEY})
-        pico_hash_binary(${CMAKE_PROJECT_NAME})
-    endif()
-    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE pico_bootrom)
-
-    list(APPEND INCLUDES
-        ${CMAKE_CURRENT_LIST_DIR}/config/rp2350/alt
-    )
-    if(TARGET mbedtls)
-        target_include_directories(mbedtls PRIVATE
-            ${CMAKE_CURRENT_LIST_DIR}/config/rp2350/alt
-        )
-        target_link_libraries(mbedtls PRIVATE pico_sha256)
-    endif()
-    list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/config/rp2350/alt/sha256_alt.c
-    )
-    add_compile_definitions(MBEDTLS_SHA256_ALT=1)
-    list(APPEND LIBRARIES pico_sha256)
-endif()
 set(INTERNAL_SOURCES ${PICO_KEYS_SOURCES})
 
 if(NOT TARGET pico_keys_sdk)

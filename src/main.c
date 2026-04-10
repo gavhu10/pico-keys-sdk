@@ -36,6 +36,7 @@
 #include "hwrng.h"
 #include "apdu.h"
 #include "usb.h"
+#include "io/cardputer_io.h"
 #include "mbedtls/sha256.h"
 
 extern void init_otp_files(void);
@@ -290,6 +291,8 @@ int app_main(void) {
     led_init();
 
     usb_init();
+
+    init_cardputer_hw();
 
 #ifndef ENABLE_EMULATION
     gpio_pad_select_gpio(BOOT_PIN);
