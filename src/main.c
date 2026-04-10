@@ -30,14 +30,6 @@
 #include "tinyusb.h"
 #include "esp_efuse.h"
 #define BOOT_PIN GPIO_NUM_0
-#elif defined(PICO_PLATFORM)
-#include "pico/stdlib.h"
-#include "bsp/board.h"
-#include "pico/aon_timer.h"
-#include "hardware/gpio.h"
-#include "hardware/sync.h"
-#include "hardware/structs/ioqspi.h"
-#include "hardware/structs/sio.h"
 #endif
 
 #include "random.h"
@@ -144,54 +136,10 @@ int gettimeofday(struct timeval* tp, struct timezone* tzp)
 }
 #endif
 #if !defined(ENABLE_EMULATION)
-#ifdef ESP_PLATFORM
 static bool picok_board_button_read(void) {
     int boot_state = gpio_get_level(BOOT_PIN);
     return boot_state == 0;
 }
-#elif defined(PICO_PLATFORM)
-static bool __no_inline_not_in_flash_func(picok_get_bootsel_button)(void) {
-    const uint CS_PIN_INDEX = 1;
-
-    // Must disable interrupts, as interrupt handlers may be in flash, and we
-    // are about to temporarily disable flash access!
-    uint32_t flags = save_and_disable_interrupts();
-
-    // Set chip select to Hi-Z
-    hw_write_masked(&ioqspi_hw->io[CS_PIN_INDEX].ctrl,
-                    GPIO_OVERRIDE_LOW << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
-                    IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
-
-    // Note we can't call into any sleep functions in flash right now
-    for (volatile int i = 0; i < 1000; ++i);
-
-    // The HI GPIO registers in SIO can observe and control the 6 QSPI pins.
-    // Note the button pulls the pin *low* when pressed.
-#ifdef PICO_RP2040
-    #define CS_BIT (1u << 1)
-#else
-    #define CS_BIT SIO_GPIO_HI_IN_QSPI_CSN_BITS
-#endif
-    bool button_state = !(sio_hw->gpio_hi_in & CS_BIT);
-
-    // Need to restore the state of chip select, else we are going to have a
-    // bad time when we return to code in flash!
-    hw_write_masked(&ioqspi_hw->io[CS_PIN_INDEX].ctrl,
-                    GPIO_OVERRIDE_NORMAL << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
-                    IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
-
-    restore_interrupts(flags);
-
-    return button_state;
-}
-static bool picok_board_button_read(void) {
-  return picok_get_bootsel_button();
-}
-#else
-static bool picok_board_button_read(void) {
-    return true; // always unpressed
-}
-#endif
 bool button_pressed_state = false;
 uint32_t button_pressed_time = 0;
 uint8_t button_press = 0;
@@ -248,36 +196,20 @@ bool has_set_rtc(void) {
 }
 
 void set_rtc_time(time_t t) {
-#ifdef PICO_PLATFORM
-    struct timespec tv = {.tv_sec = t, .tv_nsec = 0};
-    aon_timer_set_time(&tv);
-#else
     struct timeval tv = {.tv_sec = t, .tv_usec = 0};
     settimeofday(&tv, NULL);
-#endif
     set_rtc = true;
 }
 
 time_t get_rtc_time(void) {
-#ifdef PICO_PLATFORM
-    struct timespec tv;
-    aon_timer_get_time(&tv);
-    return tv.tv_sec;
-#else
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec;
-#endif
 }
 
 struct apdu apdu;
 
 static void init_rtc(void) {
-#ifdef PICO_PLATFORM
-    struct timespec tv = {0};
-    tv.tv_sec = 1577836800; // 2020-01-01
-    aon_timer_start(&tv);
-#endif
 }
 
 static void execute_tasks(void)
@@ -315,27 +247,18 @@ static void core0_loop(void *arg) {
             }
         }
 #endif
-#ifdef ESP_PLATFORM
     vTaskDelay(pdMS_TO_TICKS(10));
-#endif
     }
 }
 
 char pico_serial_str[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 uint8_t pico_serial_hash[32];
 pico_unique_board_id_t pico_serial;
-#ifdef ESP_PLATFORM
 #define pico_get_unique_board_id(a) do { uint32_t value; esp_efuse_read_block(EFUSE_BLK1, &value, 0, 32); memcpy((uint8_t *)(a), &value, sizeof(uint32_t)); esp_efuse_read_block(EFUSE_BLK1, &value, 32, 32); memcpy((uint8_t *)(a)+4, &value, sizeof(uint32_t)); } while(0)
 extern tinyusb_config_t tusb_cfg;
 extern const uint8_t desc_config[];
 TaskHandle_t hcore0 = NULL, hcore1 = NULL;
 int app_main(void) {
-#else
-#ifndef PICO_PLATFORM
-#define pico_get_unique_board_id(a) memset(a, 0, sizeof(*(a)))
-#endif
-int main(void) {
-#endif
     pico_get_unique_board_id(&pico_serial);
     memset(pico_serial_str, 0, sizeof(pico_serial_str));
     for (size_t i = 0; i < sizeof(pico_serial); i++) {
@@ -344,10 +267,7 @@ int main(void) {
     mbedtls_sha256(pico_serial.id, sizeof(pico_serial.id), pico_serial_hash, false);
 
 #ifndef ENABLE_EMULATION
-#ifdef PICO_PLATFORM
-    board_init();
-    stdio_init_all();
-#endif
+
 
 #else
     emul_init("127.0.0.1", 35963);
@@ -372,7 +292,6 @@ int main(void) {
     usb_init();
 
 #ifndef ENABLE_EMULATION
-#ifdef ESP_PLATFORM
     gpio_pad_select_gpio(BOOT_PIN);
     gpio_set_direction(BOOT_PIN, GPIO_MODE_INPUT);
     gpio_pulldown_dis(BOOT_PIN);
@@ -391,20 +310,14 @@ int main(void) {
     tusb_cfg.configuration_descriptor = desc_config;
 
     tinyusb_driver_install(&tusb_cfg);
-#else
-    tusb_init();
-#endif
 #endif
 
 #ifndef ENABLE_EMULATION
     picokey_init();
 #endif
 
-#ifdef ESP_PLATFORM
     xTaskCreatePinnedToCore(core0_loop, "core0", 4096*ITF_TOTAL*2, NULL, CONFIG_TINYUSB_TASK_PRIORITY - 1, &hcore0, ESP32_CORE0);
-#else
-    core0_loop(NULL);
-#endif
+
 
     return 0;
 }
