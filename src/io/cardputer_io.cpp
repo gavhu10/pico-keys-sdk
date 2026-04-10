@@ -1,17 +1,16 @@
 #include <M5Unified.h>
+#include "cardputer_io.h"
+
+extern "C" { 
 
 void init_cardputer_hw() {
     auto cfg = M5.config();
-
     M5.begin();
 
     M5.Display.begin();
-
-    M5.begin(cfg);
     M5.Display.setRotation(1);
-    M5.Display.setTextColor(BLACK);
+    M5.Display.setTextColor(BLUE);
     M5.Display.setTextDatum(middle_center);
-    M5.Display.setTextFont(&fonts::FreeSerifBoldItalic12pt7b);
     M5.Display.setTextSize(1);
 
     M5.Display.fillRect(10, M5.Display.height() / 2 - 15,
@@ -19,3 +18,5 @@ void init_cardputer_hw() {
     M5.Display.drawString("BLE KEYBOARD", M5.Display.width() / 2,
                           M5.Display.height() / 2);
 }
+
+} 
