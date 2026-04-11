@@ -18,9 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "pico_keys.h"
-#ifdef PICO_PLATFORM
-#include "bsp/board.h"
-#elif defined(ESP_PLATFORM)
+#if defined(ESP_PLATFORM)
 #include "driver/gpio.h"
 #include "esp_compat.h"
 #elif defined(ENABLE_EMULATION)
@@ -40,15 +38,12 @@ uint32_t led_get_mode(void) {
 }
 
 void led_blinking_task(void) {
-#if defined(PICO_PLATFORM) || defined(ESP_PLATFORM)
     static uint32_t start_ms = 0;
     static uint32_t stop_ms = 0;
     static uint32_t last_led_update_ms = 0;
     static uint8_t led_state = false;
     uint8_t state = led_state;
-#ifdef PICO_DEFAULT_LED_PIN_INVERTED
-    state = !state;
-#endif
+
     uint32_t led_brightness = (led_mode & LED_BTNESS_MASK) >> LED_BTNESS_SHIFT;
     uint32_t led_color = (led_mode & LED_COLOR_MASK) >> LED_COLOR_SHIFT;
     uint32_t led_off = (led_mode & LED_OFF_MASK) >> LED_OFF_SHIFT;
@@ -78,13 +73,10 @@ void led_blinking_task(void) {
         led_state ^= 1; // toggle
         stop_ms = start_ms + (led_state ? led_on : led_off);
     }
-#endif
 }
 
 void led_off_all(void) {
-#if defined(PICO_PLATFORM) || defined(ESP_PLATFORM)
     led_driver->set_color(LED_COLOR_OFF, 0, 0);
-#endif
 }
 
 extern led_driver_t led_driver_pico;

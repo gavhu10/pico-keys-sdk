@@ -114,6 +114,7 @@ struct timezone
     __int32  tz_minuteswest; /* minutes W of Greenwich */
     bool  tz_dsttime;     /* type of dst correction */
 };
+
 int gettimeofday(struct timeval* tp, struct timezone* tzp)
 {
     (void)tzp;
@@ -135,6 +136,7 @@ int gettimeofday(struct timeval* tp, struct timezone* tzp)
     tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
     return 0;
 }
+
 #endif
 #if !defined(ENABLE_EMULATION)
 static bool picok_board_button_read(void) {
@@ -145,43 +147,7 @@ bool button_pressed_state = false;
 uint32_t button_pressed_time = 0;
 uint8_t button_press = 0;
 bool wait_button(void) {
-    /* Disabled by default. As LED may not be properly configured,
-       it will not be possible to indicate button press unless it
-       is commissioned. */
-    uint32_t button_timeout = 0;
-    if (phy_data.up_btn_present) {
-        button_timeout = phy_data.up_btn * 1000;
-    }
-    if (button_timeout == 0) {
-        return false;
-    }
-    uint32_t start_button = board_millis();
-    bool timeout = false;
-    cancel_button = false;
-    uint32_t led_mode = led_get_mode();
-    led_set_mode(MODE_BUTTON);
-    req_button_pending = true;
-    while (picok_board_button_read() == false && cancel_button == false) {
-        execute_tasks();
-        //sleep_ms(10);
-        if (start_button + button_timeout < board_millis()) { /* timeout */
-            timeout = true;
-            break;
-        }
-    }
-    if (!timeout) {
-        while (picok_board_button_read() == true && cancel_button == false) {
-            execute_tasks();
-            //sleep_ms(10);
-            if (start_button + 15000 < board_millis()) { /* timeout */
-                timeout = true;
-                break;
-            }
-        }
-    }
-    led_set_mode(led_mode);
-    req_button_pending = false;
-    return timeout || cancel_button;
+    return wait_for_keypress();
 }
 
 __attribute__((weak)) int picokey_init(void) {
@@ -215,9 +181,6 @@ static void init_rtc(void) {
 
 static void execute_tasks(void)
 {
-#if !defined(ENABLE_EMULATION) && !defined(ESP_PLATFORM)
-    tud_task(); // tinyusb device task
-#endif
     usb_task();
     led_blinking_task();
 }
