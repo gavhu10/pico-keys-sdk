@@ -222,7 +222,12 @@ pico_unique_board_id_t pico_serial;
 extern tinyusb_config_t tusb_cfg;
 extern const uint8_t desc_config[];
 TaskHandle_t hcore0 = NULL, hcore1 = NULL;
-int app_main(void) {
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void app_main(void) {
     pico_get_unique_board_id(&pico_serial);
     memset(pico_serial_str, 0, sizeof(pico_serial_str));
     for (size_t i = 0; i < sizeof(pico_serial); i++) {
@@ -283,7 +288,8 @@ int app_main(void) {
 #endif
 
     xTaskCreatePinnedToCore(core0_loop, "core0", 4096*ITF_TOTAL*2, NULL, CONFIG_TINYUSB_TASK_PRIORITY - 1, &hcore0, ESP32_CORE0);
-
-
-    return 0;
 }
+
+#ifdef __cplusplus
+}
+#endif

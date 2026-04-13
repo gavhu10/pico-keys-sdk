@@ -15,10 +15,21 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+# Dummy macro to replace Pico SDK functionality if not found
+if(NOT COMMAND configure_bool_option)
+    macro(configure_bool_option _option _variable _enabled_msg _disabled_msg)
+        if(${_option})
+            message(STATUS "${_enabled_msg}")
+        else()
+            message(STATUS "${_disabled_msg}")
+        endif()
+    endmacro()
+endif()
+
 include(pico-keys-sdk/cmake/version.cmake OPTIONAL)
 include(pico-keys-sdk/cmake/options.cmake OPTIONAL)
 
-option(VIDPID "Set specific VID/PID from a known platform {NitroHSM, NitroFIDO2, NitroStart, NitroPro, Nitro3, Yubikey5, YubikeyNeo, YubiHSM, Gnuk, GnuPG}" "None")
+set(VIDPID "None" CACHE STRING "Set specific VID/PID from a known platform")
 
 message(STATUS "VIDPID:\t\t\t '${VIDPID}'")
 
@@ -107,7 +118,7 @@ add_compile_definitions(DEBUG_APDU=${DEBUG_APDU})
 if(NOT ESP_PLATFORM)
     add_compile_definitions(MBEDTLS_CONFIG_FILE="${CMAKE_CURRENT_LIST_DIR}/config/mbedtls_config.h")
 else()
-    add_compile_definitions(CFG_TUSB_CONFIG_FILE="${CMAKE_CURRENT_LIST_DIR}/src/usb/tusb_config.h")
+    add_compile_definitions(CFG_TUSB_CONFIG_FILE="${CMAKE_CURRENT_LIST_DIR}/main/usb/tusb_config.h")
 endif()
 
 message(STATUS "USB VID/PID:\t\t\t ${USB_VID}:${USB_PID}")
@@ -340,36 +351,37 @@ if(ENABLE_PQC)
 endif()
 
 list(APPEND PICO_KEYS_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/src/main.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/usb/usb.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/fs/file.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/fs/flash.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/fs/low_flash.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/fs/otp.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/fs/phy.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/rng/random.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/rng/hwrng.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/eac.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/crypto_utils.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/asn1.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/apdu.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/rescue.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/led/led.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/io/cardputer_io.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/main/main.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/app_main.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/usb/usb.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/fs/file.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/fs/flash.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/fs/low_flash.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/fs/otp.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/fs/phy.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/rng/random.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/rng/hwrng.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/eac.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/crypto_utils.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/asn1.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/apdu.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/rescue.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/led/led.c
+    ${CMAKE_CURRENT_LIST_DIR}/main/io/cardputer_io.cpp
 )
 
 if(ESP_PLATFORM)
     list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/led/led_neopixel.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/led/led_pico.c
+        ${CMAKE_CURRENT_LIST_DIR}/main/led/led_neopixel.c
+        ${CMAKE_CURRENT_LIST_DIR}/main/led/led_pico.c
     )
 else()
     if(NOT ENABLE_EMULATION)
         list(APPEND PICO_KEYS_SOURCES
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_cyw43.c
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_pico.c
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_pimoroni.c
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_ws2812.c
+            ${CMAKE_CURRENT_LIST_DIR}/main/led/led_cyw43.c
+            ${CMAKE_CURRENT_LIST_DIR}/main/led/led_pico.c
+            ${CMAKE_CURRENT_LIST_DIR}/main/led/led_pimoroni.c
+            ${CMAKE_CURRENT_LIST_DIR}/main/led/led_ws2812.c
         )
     endif()
 endif()
@@ -383,17 +395,17 @@ if(NOT ENABLE_EMULATION AND NOT APPLE)
     )
 endif()
 list(APPEND INCLUDES
-    ${CMAKE_CURRENT_LIST_DIR}/src
-    ${CMAKE_CURRENT_LIST_DIR}/src/usb
-    ${CMAKE_CURRENT_LIST_DIR}/src/fs
-    ${CMAKE_CURRENT_LIST_DIR}/src/rng
-    ${CMAKE_CURRENT_LIST_DIR}/src/led
+    ${CMAKE_CURRENT_LIST_DIR}/main
+    ${CMAKE_CURRENT_LIST_DIR}/main/usb
+    ${CMAKE_CURRENT_LIST_DIR}/main/fs
+    ${CMAKE_CURRENT_LIST_DIR}/main/rng
+    ${CMAKE_CURRENT_LIST_DIR}/main/led
     ${CMAKE_CURRENT_LIST_DIR}/mbedtls/library
 )
 set(SYSTEM_INCLUDES
     ${SYSTEM_INCLUDES}
     ${CMAKE_CURRENT_LIST_DIR}/mbedtls/include
-    ${CMAKE_CURRENT_LIST_DIR}/tinycbor/src
+    ${CMAKE_CURRENT_LIST_DIR}/tinycbor/main
 )
 
 if(USB_ITF_HID)
@@ -494,19 +506,19 @@ endfunction()
 
 if(USB_ITF_HID)
     list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/hid/hid.c
+        ${CMAKE_CURRENT_LIST_DIR}/main/usb/hid/hid.c
     )
     list(APPEND INCLUDES
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/hid
+        ${CMAKE_CURRENT_LIST_DIR}/main/usb/hid
     )
 endif()
 
 if(USB_ITF_CCID)
     list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/ccid/ccid.c
+        ${CMAKE_CURRENT_LIST_DIR}/main/usb/ccid/ccid.c
     )
     list(APPEND INCLUDES
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/ccid
+        ${CMAKE_CURRENT_LIST_DIR}/main/usb/ccid
     )
 endif()
 
@@ -515,7 +527,7 @@ if(NOT MSVC)
 endif()
 if(MSVC)
     list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/fs/mman.c
+        ${CMAKE_CURRENT_LIST_DIR}/main/fs/mman.c
     )
 endif()
 if(ENABLE_EMULATION)
@@ -524,22 +536,22 @@ if(ENABLE_EMULATION)
     endif()
     add_compile_definitions(ENABLE_EMULATION)
     list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/emulation/emulation.c
+        ${CMAKE_CURRENT_LIST_DIR}/main/usb/emulation/emulation.c
     )
     if(USE_OPENSSL_EMULATION_WRAPPER)
         list(APPEND PICO_KEYS_SOURCES
-            ${CMAKE_CURRENT_LIST_DIR}/src/usb/emulation/openssl.c
+            ${CMAKE_CURRENT_LIST_DIR}/main/usb/emulation/openssl.c
         )
     endif()
     list(APPEND MBEDTLS_SOURCES
         ${CMAKE_CURRENT_LIST_DIR}/mbedtls/library/aesni.c
     )
     list(APPEND INCLUDES
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/emulation
+        ${CMAKE_CURRENT_LIST_DIR}/main/usb/emulation
     )
 else()
     list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/usb/usb_descriptors.c
+        ${CMAKE_CURRENT_LIST_DIR}/main/usb/usb_descriptors.c
     )
 endif()
 
