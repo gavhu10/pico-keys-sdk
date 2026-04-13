@@ -15,6 +15,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+
+#include "usb.h"                // This provides ITF_SC_CCID, ITF_SC_TOTAL, etc.
+#include "tusb_config.h"        // Ensures configuration is loaded
+#include "class/vendor/vendor_device.h" // Provides tud_vendor_n_available, etc.
+#include "device/usbd_pvt.h"    // Provides vendord_open, vendord_xfer_cb, etc.
+
 #include "random.h"
 #include "pico_keys.h"
 #ifdef PICO_PLATFORM

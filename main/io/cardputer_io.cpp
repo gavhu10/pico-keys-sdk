@@ -7,6 +7,10 @@ static bool button_read(void) {
 }
 
 
+extern "C" void tud_vendor_mount_cb(uint8_t itf) {
+    M5.Lcd.printf("Vendor ITF %d Mounted\n", itf);
+}
+
 extern "C"
 {
 

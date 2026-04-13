@@ -54,14 +54,13 @@ extern "C" {
 #endif
 
 #ifndef CFG_TUSB_OS
-#if CFG_TUSB_MCU == OPT_MCU_RP2040
-#define CFG_TUSB_OS           OPT_OS_PICO
-#elif CFG_TUSB_MCU == OPT_MCU_ESP32S2 || CFG_TUSB_MCU == OPT_MCU_ESP32S3
-#define CFG_TUSB_OS           OPT_OS_FREERTOS
-#elif CFG_TUSB_MCU == OPT_MCU_NONE
-#define CFG_TUSB_OS           OPT_OS_NONE
-#define TUP_DCD_ENDPOINT_MAX 16
-#endif
+  #if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32)
+    #define CFG_TUSB_OS           OPT_OS_FREERTOS
+  #elif CFG_TUSB_MCU == OPT_MCU_RP2040
+    #define CFG_TUSB_OS           OPT_OS_PICO
+  #else
+    #define CFG_TUSB_OS           OPT_OS_NONE
+  #endif
 #endif
 
 #ifndef CFG_TUSB_RHPORT0_MODE

@@ -17,6 +17,8 @@ set(SOURCES
     "fs/phy.c"
     "io/cardputer_io.cpp"
     "led/led.c"
+    "led/led_neopixel.cpp"
+    "led/led_pico.c"
     "rng/hwrng.c"
     "rng/random.c"
     "usb/usb.c"
@@ -45,5 +47,8 @@ idf_component_register(
         m5unified
 )
 
-# 3. Apply platform-specific definitions
-target_compile_definitions(${COMPONENT_LIB} PRIVATE ESP_PLATFORM=1) 
+# Add USB_ITF_CCID=1 so tusb_config.h enables the Vendor driver
+target_compile_definitions(${COMPONENT_LIB} PRIVATE 
+    ESP_PLATFORM=1 
+    USB_ITF_CCID=1
+)
